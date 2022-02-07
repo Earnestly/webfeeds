@@ -1,0 +1,142 @@
+.TH WEBFEEDS 1 "5 February 2022" 1.0
+.SH NAME
+webfeeds \- collect web feed titles and links
+.SH SYNOPSIS
+.B webfeeds
+.RB [ -0 ]
+.SH DESCRIPTION
+.B webfeeds
+reads standard input and potentially produces a list of directories.  Input
+takes the form a feed
+.I url
+followed by a
+.IR title .
+If the
+.I title
+is not present, the line beings with a
+.I #
+character or it is empty then it shall be skipped.
+.P
+If a feed was found to contain new entries the directory to its database will
+be written to standard output.  Inside this directory there will exist the file
+.I new
+containing the recent entries' links and associated titles.  The
+.I archive
+file will contain any entries found on prior executions.
+.SH OPTIONS
+.TP
+.B -0
+The directories written to standard output will be separated by null bytes
+instead of newlines.
+.SH EXIT STATUS
+.B webfeeds
+usually returns
+.B zero
+but errors from tools used within are able to write their own messages to
+standard error.
+.SH ENVIRONMENT
+.TP
+.B XDG_DATA_HOME
+The directory used for storing the database.
+.B \%HOME/.local/share
+will be used if not set.
+.TP
+.B XDG_CACHE_HOME
+The directory used for storing the XSLT code.
+.B \%HOME/.cache
+will be used if not set.
+.SH FILES
+.TP
+.B \%XDG_DATA_HOME/webfeeds
+Directory containing the database used to track new entries from web feeds.
+.P
+For each
+.I link
+provided the extracted
+.I domain
+and
+.I title
+will be joined to create directories under which the
+.IR new ", " archive " and "storage
+files may be found.
+.TP
+.B \%XDG_DATA_HOME/webfeeds/domain/title/new
+File containing newly discovered entries.
+.TP
+.B \%XDG_DATA_HOME/webfeeds/domain/title/archive
+File containing roughly 3000 entries seen heretofore before being placed in
+storage.
+.TP
+.B \%XDG_DATA_HOME/webfeeds/domain/title/storage
+Directory containing gzip compressed archives which are produced once the
+number of entries in the
+.I archive
+file exceeds 3000.
+.P
+The files
+.IR etag ", " xml " and " recent
+used for internal details may also be found here.
+.TP
+.B \%XDG_DATA_HOME/webfeeds/domain/title/etag
+File used to store etag values used when querying servers for new data to
+prevent downloading unnecessarily.
+.TP
+.B \%XDG_DATA_HOME/webfeeds/domain/title/xml
+The web feed data from which pertinent information is extracted.  This file is
+removed immediately afterwards and should not be present under normal
+circumstances.
+.TP
+.B \%XDG_DATA_HOME/webfeeds/domain/title/recent
+File contains the freshly parsed results and used to produce the new file.  It
+is removed immediately afterwards and should not be present under normal
+circumstances.
+.TP
+.B \%XDG_CACHE_HOME/webfeeds/feed.xslt
+File containing XSLT code used for extracting links and titles from web feeds.
+.SH NOTES
+Each time
+.B webfeeds
+is run the corresponding
+.I new
+files will be overwritten.  As a result one will not be able to use this file
+as a means to track unread entries if it has not been processed before
+subsequent runs.  The missed entries will nevertheless be found in the
+.I archive
+file or within the
+.I storage
+directory.
+.SH EXAMPLES
+The essential workflow of this tool can be demonstrated as follows:
+.P
+.EX
+    $ cat feeds
+    # linux news
+    https://lwn.net/headlines/newrss LWN.net
+
+    $ webfeeds < feeds
+    /home/earnest/.local/share/webfeeds/lwn.net/LWN.net
+
+    $ cat /home/earnest/.local/share/webfeeds/lwn.net/LWN.net/new
+    https://lwn.net/Articles/883829/rss GStreamer 1.20.0 released
+    https://lwn.net/Articles/883454/rss [$] A memory allocator for BPF code
+    https://lwn.net/Articles/883828/rss Security updates for Friday
+    ...
+.EE
+.P
+Alone this is not particularly comfortable.
+.B webfeeds
+was designed to separate retrieval and storage from presentation; simple
+scripts can be used to provide a reasonable feed reader, for example:
+.P
+.EX
+    #!/bin/bash --
+
+    while IFS= read -rd '' db; do
+        printf -v prompt '[%s] %s' "$(wc -l < "$db"/new)" "${db##*/}"
+        printf '%s\en' "$prompt" "${prompt//?/=}" "$(< "$db"/new)"
+        printf '\ea\en'
+    done < <(nice webfeeds -0 < feeds) | less -o feed.log +F
+.EE
+.SH SOURCE
+.UR webfeeds
+.UE

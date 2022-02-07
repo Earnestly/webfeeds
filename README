@@ -1,0 +1,40 @@
+webfeeds <https://github.com/Earnestly/webfeeds>
+
+INTRODUCTION
+
+    webfeeds is a tolerable aggregator of web feed titles and links.
+
+    It passes the responsibility of reading the links to web browsers which are
+    better suited to handle such content.  As a result it needs not store
+    anything more than the URL and its title for each web feed item.
+
+    N.B. I would like to store the timestamps eventually but solutions to
+         handle their variance would oblige me a rewrite in a programming
+         language.
+
+WHY
+
+    webfeeds came to exist when newsbueter (now newsboat) was suffering from
+    tremendous memory leaks resulting in 1G of RES for roughly fifty feeds.
+
+    It was a temporary measure that I wrote a script to download the XML
+    directly using XSLT to transform the input into the form I wanted.  After
+    several years I had noticed little need for more and went about slowly
+    shaping webfeeds into what it is now.
+
+    Performance improvements were gained from curl adding support for parallel
+    downloads and due to the simple text database I have ended up with roughly
+    3M of storage use covering roughly six years from sixty web feeds.
+
+    The memory cost for polling my collection every two hours amounts to the
+    cost of sleep(1) and the shell, roughly 1M.
+
+REQUIRES
+
+    * curl[>=7.75.0]
+    * xsltproc
+    * gzip
+
+INSTALL
+
+    make PREFIX=/usr install

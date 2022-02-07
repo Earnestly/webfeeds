@@ -1,0 +1,150 @@
+#!/bin/sh --
+# webfeeds - collect web feed titles and links
+# requires curl[>=7.75.0] xsltproc gzip
+
+datadir=${XDG_DATA_HOME:-$HOME/.local/share}/webfeeds
+cachedir=${XDG_CACHE_HOME:-$HOME/.cache}/webfeeds
+xslt=$cachedir/feed.xslt
+
+mkdir -p -- "$datadir" "$cachedir"
+! [ -f "$xslt" ] && cat > "$xslt" << \!
+<xsl:stylesheet version='1.0'
+    xmlns:xsl='http://www.w3.org/1999/XSL/Transform'
+    xmlns:rss='http://purl.org/rss/1.0/'
+    xmlns:atom='http://www.w3.org/2005/Atom'
+    xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'
+    xmlns:dc='http://purl.org/dc/elements/1.1/'
+    xmlns:yt='http://www.youtube.com/xml/schemas/2015'
+    xmlns:media='http://search.yahoo.com/mrss/'
+    xmlns:content='http://purl.org/rss/1.0/modules/content/'>
+
+    <xsl:output method='text' omit-xml-declaration='yes'/>
+
+    <!--
+        N.B. Ideally the date would be added to these entries but there is no
+             common format for dates and everyone does their own thing.
+    -->
+    <xsl:template match='/rss'>
+        <xsl:for-each select='channel/item'>
+            <xsl:choose>
+                <xsl:when test='guid/@isPermaLink = "true"'>
+                    <xsl:value-of select='guid'/><xsl:text> </xsl:text>
+                </xsl:when>
+                <xsl:otherwise>
+                    <xsl:value-of select='link'/><xsl:text> </xsl:text>
+                </xsl:otherwise>
+            </xsl:choose>
+            <xsl:value-of select='title'/><xsl:text>&#10;</xsl:text>
+        </xsl:for-each>
+    </xsl:template>
+
+    <xsl:template match='/atom:feed'>
+        <xsl:for-each select='atom:entry'>
+            <xsl:value-of select='atom:link/@href'/><xsl:text> </xsl:text>
+            <xsl:value-of select='atom:title'/><xsl:text>&#10;</xsl:text>
+        </xsl:for-each>
+    </xsl:template>
+
+    <xsl:template match='/rdf:RDF'>
+        <xsl:for-each select='rss:item'>
+            <xsl:value-of select='rss:link'/><xsl:text> </xsl:text>
+            <xsl:value-of select='rss:title'/><xsl:text>&#10;</xsl:text>
+        </xsl:for-each>
+    </xsl:template>
+</xsl:stylesheet>
+!
+
+escape() {
+    string="$1" awk 'BEGIN{
+        s = ENVIRON["string"]
+
+        gsub("\\\\", "\\\\", s)
+        gsub("\n", "\\n", s)
+        gsub("\r", "\\r", s)
+        gsub("\t", "\\t", s)
+        gsub("\v", "\\v", s)
+        gsub("\"", "\\\"", s)
+
+        print s
+    }'
+}
+
+# N.B. The $'' syntax is not yet POSIX.
+nl='
+'
+
+if [ "$1" = -0 ]; then
+    sep='\0'
+fi
+
+while read -r url title; do
+    case $url in
+        [!#]*://*)
+            if [ "$title" ]; then
+                domain=${url#*://}
+                domain=${domain%%/*}
+
+                path=$datadir/$domain/$title
+
+                # N.B. While mkdir -p can be used with an existing directory,
+                #      it is noticably slower to unconditionally fork and exec
+                #      a process for each line of input especially when this
+                #      should only be necessary when first encountering a new
+                #      feed.  This is necessary as curl does not make leading
+                #      directories for its etags.
+                #      https://github.com/curl/curl/issues/7942
+                if ! [ -d "$path" ]; then
+                    mkdir -p -- "$path"
+                fi
+
+                # N.B. Ensure the path is made safe for curl's config format.
+                case $path in
+                    *$nl*|*\"*|*\\*) path=$(escape "$path")
+                esac
+
+                printf 'next\n'
+                printf 'fail\n'
+                printf 'location\n'
+                printf 'url "%s"\n' "$url"
+
+                printf 'etag-save "%s/etag"\n' "$path"
+                printf 'etag-compare "%s/etag"\n' "$path"
+                printf 'output "%s/xml"\n' "$path"
+            fi
+        ;;
+    esac
+done | curl -qsZLK - -w '%{onerror}%{stderr}curl: %{url}: %{exitcode}: %{errormsg}\n'
+
+for xml in "$datadir"/*/*/xml; do
+    if [ -f "$xml" ]; then
+        db=${xml%/xml}
+
+        if ! xsltproc --encoding UTF-8 -o "$db"/recent "$xslt" "$db"/xml; then
+            printf 'webfeeds: %s: errors processing xml data\n' "$db"/xml >&2
+        else
+            rm -f -- "$db"/xml
+
+            # N.B. Ensure the archive and recent files are present even if both
+            #      are empty so that subsequent commands succeed.
+            : >> "$db"/archive
+            : >> "$db"/recent
+
+            grep -Fxvf "$db"/archive -- "$db"/recent > "$db"/new
+            rm -f -- "$db"/recent
+
+            if [ -s "$db"/new ]; then
+                printf "%s${sep:-\n}" "$db"
+            fi
+
+            cat -- "$db"/new "$db"/archive > "$db"/tmp
+            mv -f -- "$db"/tmp "$db"/archive
+
+            # Compress large archives.
+            if [ "$(wc -l < "$db"/archive)" -gt 3000 ]; then
+                mkdir -p -- "$db"/storage
+                gzip -c -- "$db"/archive > "$db"/storage/"$(date -u +%Y-%M-%dT%T%Z)".gz
+                : > "$db"/archive
+            fi
+        fi
+    fi
+done
