@@ -5,6 +5,7 @@
 datadir=${XDG_DATA_HOME:-$HOME/.local/share}/webfeeds
 cachedir=${XDG_CACHE_HOME:-$HOME/.cache}/webfeeds
 xslt=$cachedir/feed.xslt
+ua=webfeeds/1.0
 
 mkdir -p -- "$datadir" "$cachedir"
 ! [ -f "$xslt" ] && cat > "$xslt" << \!
@@ -113,7 +114,7 @@ while read -r url title; do
             fi
         ;;
     esac
-done | curl -qsZLK - -w '%{onerror}%{stderr}curl: %{url}: %{exitcode}: %{errormsg}\n'
+done | curl -A "$ua" -qsZLK - -w '%{onerror}%{stderr}curl: %{url}: %{exitcode}: %{errormsg}\n'
 
 for xml in "$datadir"/*/*/xml; do
     if [ -f "$xml" ]; then
