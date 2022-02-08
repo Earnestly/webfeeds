@@ -5,7 +5,7 @@ INTRODUCTION
     webfeeds is a tolerable aggregator of web feed titles and links.
 
     It passes the responsibility of reading the links to web browsers which are
-    better suited to handle such content.  As a result it needs not store
+    better suited to handle such content.  As a result it need not store
     anything more than the URL and its title for each web feed item.
 
     N.B. I would like to store the timestamps eventually but solutions to
