@@ -1,0 +1,165 @@
+#!/bin/sh --
+# webfeeds - collect web feed titles and links
+# requires curl[>=7.75.0] xsltproc dateutils gzip awk(null-split)
+
+urlencode() {
+    # XXX xsltproc's stringparams attempts to add ' or " quotes depending on
+    #     their presence in the string; if both are found xsltproc will exit
+    #     with an error.
+
+    #     There also appears to be a bug - if some unreserved or multibyte
+    #     characters appear in the path, xsltproc seems to encode twice, or
+    #     separately, such that on decode there will remain a few percent
+    #     encoded bytes in the result, such as a %20 instead of a literal
+    #     space.
+
+    #     As a consequence it appears better to percent encode the entire
+    #     string regardless of characters reserved or unreserved.  A secondary
+    #     benefit is that now without the ' or " quotes being present
+    #     stringparams can work unhindered.
+
+    #     N.B. This implementation requires of awk the ability to split strings
+    #          into individual bytes using the null string.  It is unspecified
+    #          by POSIX but supported by all relevant implementations.
+    e="$1" LC_ALL=C awk '
+        BEGIN{
+            for(i=0; i<255; ++i)
+                ord[sprintf("%c", i)] = i
+
+            n = split(ENVIRON["e"], byte, "")
+
+            for(i=1; i<=n; ++i)
+                printf "%%%02x", ord[byte[i]]
+        }'
+}
+
+datadir=${XDG_DATA_HOME:-$HOME/.local/share}/webfeeds
+xsltdir=M4_XSLTDIR
+ua=webfeeds/2.0
+
+while getopts :0d:l: arg; do
+    case $arg in
+        0) sep='\0' ;;
+        d) datadir=$OPTARG ;;
+        l) xsltdir=$OPTARG ;;
+        *) printf 'usage: webfeeds [-0] [-d dbdir] [-l xsltdir]\n' >&2
+           exit 1
+    esac
+done
+
+if ! mkdir -p -- "$datadir"; then
+    exit 1
+fi
+
+for xsl in "$xsltdir"/parse.xslt "$xsltdir"/write.xslt; do
+    if ! [ -f "$xsl" ]; then
+        printf 'webfeeds: error: %s: no such file\n' "$xsl" >&2
+        exit 1
+    fi
+done
+
+# XXX Until POSIX supports $'' syntax, this will have to do.
+cr=$(printf '\r')
+hr=$(printf '\t')
+
+while read -r url _; do
+    case $url in
+        [!#]*://*)
+            path=$datadir/xml/${url#http*://}
+
+            # Ensure the path exists for curl's etags as it does not create the
+            # leading directories.
+            # https://github.com/curl/curl/issues/7942
+            if ! [ -d "$path" ]; then
+                mkdir -p -- "$path"
+            fi
+
+            # Ensure the path is made safe for curl's config format.
+            case $path in
+                *[${IFS#??}$cr$hr\"\\]*)
+                    path=$(e="$path" awk '
+                        BEGIN{
+                            s = ENVIRON["e"]
+
+                            gsub(/\\/, "\\\\", s)
+                            gsub(/"/,  "\\\"", s)
+                            gsub(/\n/, "\\n", s)
+                            gsub(/\r/, "\\r", s)
+                            gsub(/\t/, "\\t", s)
+
+                            printf "%s", s
+                        }')
+            esac
+
+            printf '%s\n' next location fail compressed
+            printf 'user-agent %s\n' "$ua"
+            printf 'url "%s"\n' "$url"
+
+            printf 'etag-save "%s/etag"\n' "$path"
+            printf 'etag-compare "%s/etag"\n' "$path"
+
+            # Output files are used rather than standard output as when curl
+            # uses parallel the output is interleaved with no option to control
+            # it.
+            printf 'output "%s/xml"\n' "$path"
+
+            # XXX By default when curl is called with multiple urls, and if one
+            #     of those calls results in an error, it will not include the
+            #     url in its error message making it difficult to track down
+            #     the origin of the error.
+            printf 'write-out "%s"\n' '%{onerror}%{stderr}curl: %{url}: %{errormsg}\n'
+    esac
+done | curl -gqsZLK -
+
+{
+    printf '<c>'
+    find "$datadir"/xml -type f -name xml -exec sh -c '
+        db=$1 xslt=$2
+        shift 2
+        xsltproc -nonet -stringparam prefix "$db" "$xslt" "$@"
+        rm -f -- "$@"' _ "$(urlencode "$datadir"/db)" "$xsltdir"/parse.xslt {} +
+    printf '</c>\n'
+} | {
+    # XXX dateutils does not account for named timezones or their abbreviations,
+    #     in particular GMT and UTC.  However, as both represent UTC0, they can
+    #     be removed by matching their strings explicitly.
+    #     https://github.com/hroptatyr/dateutils/issues/140
+    set -- -i '<d>%FT%T%Z</d>' \
+           -i '<d>%a, %d %b %Y %T %Z</d>' \
+           -i '<d>%a, %d %b %Y %T GMT</d>' \
+           -i '<d>%a, %d %b %Y %T UTC</d>' \
+           -i '<d>%d %b %Y %T %Z</d>' \
+           -i '<d>%F</d>'
+
+    dateconv -Sf '<d>%FT%TZ</d>' "$@"
+} | xsltproc "$xsltdir"/write.xslt -
+
+# XXX Trivial parallelism is possible here, and while this is the slowest part
+#     of the script, it is not slow enough.
+for recent in "$datadir"/db/*/*/recent; do
+    if [ -f "$recent" ]; then
+        db=${recent%/*}
+
+        # Ensure the archive and recent files are present even if both are
+        # empty so that subsequent commands succeed.
+        : >> "$db"/archive
+        : >> "$db"/recent
+
+        grep -Fxvf "$db"/archive -- "$db"/recent > "$db"/new
+        rm -f -- "$db"/recent
+
+        if [ -s "$db"/new ]; then
+            printf "%s${sep:-\n}" "$db"
+        fi
+
+        cat -- "$db"/new "$db"/archive > "$db"/tmp
+        mv -f -- "$db"/tmp "$db"/archive
+
+        # Compress large archives to help maintain grep performance.
+        if [ "$(wc -l < "$db"/archive)" -gt 3000 ]; then
+            mkdir -p -- "$db"/storage
+            gzip -c -- "$db"/archive > "$db"/storage/"$(date -u +%Y-%M-%dT%T%Z)".gz
+            : > "$db"/archive
+        fi
+    fi
+done
