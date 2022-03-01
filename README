@@ -22,6 +22,22 @@ WHY
     downloads and due to the simple text database I have ended up with roughly
     3M of storage use covering roughly six years from sixty web feeds.
 
+HOW
+
+    The parse.xslt XSLT transforms discrete web feeds into a normalised XML
+    format comprising a percent-encoded filepath in the form of domain/title
+    and its associated entries containing the dates, links and titles.
+
+        <c><f><p>percent-encoded filepath</p><e><i>
+        <d>date</d>
+        <l>link</l><t>title</t></i>...</e></f><f>...</f></c><c>...</c>
+
+    N.B. Each date element is arranged on its own line so that dateconv matches
+         them exactly.
+
+    The format is then used by write.xslt via <xsl:document> to generate file
+    outputs in the desired format.
+
 REQUIRES
 
     * curl[>=7.75.0]
