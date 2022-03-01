@@ -30,7 +30,7 @@ HOW
 
         <c><f><p>percent-encoded filepath</p><e><i>
         <d>date</d>
-        <l>link</l><t>title</t></i>...</e></f><f>...</f></c><c>...</c>
+        <l>link</l><t>title</t></i>...</e></f><f>...</f></c>
 
     N.B. Each date element is arranged on its own line so that dateconv matches
          them exactly.
