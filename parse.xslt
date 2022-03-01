@@ -17,7 +17,7 @@
         <xsl:param name="title"/>
 
         <!-- Extract the domain name. -->
-        <xsl:variable name="link" select="substring-before(concat(substring-after($link, '://'), '/'), '/')"/>
+        <xsl:variable name="domain" select="substring-before(concat(substring-after($link, '://'), '/'), '/')"/>
 
         <xsl:variable name="title">
             <xsl:choose>
@@ -37,7 +37,7 @@
         <xsl:element name="p">
             <xsl:value-of select="$prefix"/>
             <xsl:text>/</xsl:text>
-            <xsl:value-of select="$link"/>
+            <xsl:value-of select="$domain"/>
             <xsl:text>/</xsl:text>
             <xsl:value-of select="$title"/>
             <xsl:text>/recent</xsl:text>
