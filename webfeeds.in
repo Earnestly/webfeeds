@@ -42,7 +42,7 @@ while getopts :0d:l: arg; do
         0) sep='\0' ;;
         d) datadir=$OPTARG ;;
         l) xsltdir=$OPTARG ;;
-        *) printf 'usage: webfeeds [-0] [-d dbdir] [-l xsltdir]\n' >&2
+        *) printf 'usage: webfeeds [-0] [-d database_dir] [-l xslt_dir]\n' >&2
            exit 1
     esac
 done

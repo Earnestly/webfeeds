@@ -5,9 +5,9 @@ webfeeds \- collect web feed titles and links
 .B webfeeds
 .RB [ \-0 ]
 .RB [ \-d
-.IR dbdir ]
+.IR database_dir ]
 .RB [ \-l
-.IR xsltdir ]
+.IR xslt_dir ]
 .SH DESCRIPTION
 .B webfeeds
 reads standard input composed of newline separated URLs and potentially
@@ -21,8 +21,8 @@ If a feed was found to contain new entries then the directory to its database
 will be written to standard output.  Inside this directory there will exist the
 file
 .I new
-containing the recent entries.  The counterpart file
-.I archive
+containing the recent entries.  The counterpart,
+.IR archive ,
 will contain all entries seen thusfar.
 .P
 The entries are separated by newlines and interspersed by spaces.  It consists
@@ -41,10 +41,14 @@ The directories written to standard output will be separated by null bytes
 instead of newlines.
 .TP
 .B \-d
-Specify a directory under which the database will be maintained.
+Specify the
+.I database_dir
+under which the database will be maintained.
 .TP
 .B \-l
-Specify a directory under which the necessary XSLT files can be found.
+Specify the
+.I xslt_dir
+under which the necessary XSLT files can be found.
 .SH EXIT STATUS
 .B webfeeds
 usually returns
@@ -140,7 +144,7 @@ The essential workflow of this tool can be demonstrated as follows:
 .P
 Alone this is not particularly comfortable;
 .B webfeeds
-was designed to separate retrieval and storage from presentation; simple
+was designed to separate retrieval and storage from presentation.  Simple
 scripts can be used to provide a reasonable feed reader, for example:
 .P
 .EX
