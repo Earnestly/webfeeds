@@ -91,7 +91,11 @@ while read -r url _; do
                         }')
             esac
 
-            printf '%s\n' next location fail compressed
+            # XXX Until --remove-on-error is available (7.83.0) the url is
+            #     printed on error to standard output.  From there it is drawn
+            #     into a loop which recreates the path to the xml file and
+            #     removes it.  https://github.com/curl/curl/pull/8503
+            printf '%s\n' next location fail compressed # remove-on-error
             printf 'user-agent %s\n' "$ua"
             printf 'url "%s"\n' "$url"
 
@@ -103,13 +107,18 @@ while read -r url _; do
             # it.
             printf 'output "%s/xml"\n' "$path"
 
-            # XXX By default when curl is called with multiple urls, and if one
-            #     of those calls results in an error, it will not include the
-            #     url in its error message making it difficult to track down
-            #     the origin of the error.
-            printf 'write-out "%s"\n' '%{onerror}%{stderr}curl: %{url}: %{errormsg}\n'
+            # XXX By default when curl is called with multiple urls, and if
+            #     one of those calls results in an error, it will not always
+            #     include the url in the associated error message.
+            printf 'write-out "%s"\n' '%{onerror}%{url}\n%{stderr}curl: %{url}: %{errormsg}\n'
     esac
-done | curl -gqsZLK -
+done | curl -gsqZLK - | while IFS= read -r url; do
+    xml=$datadir/${url#http*://}/xml
+
+    if [ -f "$xml" ]; then
+        rm -f -- "$xml"
+    fi
+done
 
 {
     printf '<c>'
@@ -135,7 +144,7 @@ done | curl -gqsZLK -
 } | xsltproc "$xsltdir"/write.xslt -
 
 # XXX Trivial parallelism is possible here, and while this is the slowest part
-#     of the script, it is not slow enough.
+#     of the script, it is not yet slow enough.
 for recent in "$datadir"/db/*/*/recent; do
     if [ -f "$recent" ]; then
         db=${recent%/*}
