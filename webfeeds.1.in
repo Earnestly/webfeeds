@@ -4,18 +4,19 @@ webfeeds \- collect web feed titles and links
 .SH SYNOPSIS
 .B webfeeds
 .RB [ \-0 ]
-.RB [ \-d
-.IR database_dir ]
 .RB [ \-l
-.IR xslt_dir ]
+.IR directory ]
+.I database
 .SH DESCRIPTION
 .B webfeeds
 reads standard input composed of newline separated URLs and potentially
-produces a list of directories.
+produces a list of directories under the provided
+.I database
+directory.
 .P
-If the line is empty or begins with a
+Each line of input is checked whether it is empty or beings with a
 .I #
-character it will be skipped.  Any text after a URL is also ignored.
+character in which case it is skipped.  Any text after a URL is also ignored.
 .P
 If a feed was found to contain new entries then the directory to its database
 will be written to standard output.  Inside this directory there will exist the
@@ -40,14 +41,9 @@ For example:
 The directories written to standard output will be separated by null bytes
 instead of newlines.
 .TP
-.B \-d
-Specify the
-.I database_dir
-under which the database will be maintained.
-.TP
 .B \-l
 Specify the
-.I xslt_dir
+.I directory
 under which the necessary XSLT files can be found.
 .SH EXIT STATUS
 .B webfeeds
@@ -55,40 +51,34 @@ usually returns
 .B zero
 but errors from tools used within are able to write their own messages to
 standard error.
-.SH ENVIRONMENT
-.TP
-.B XDG_DATA_HOME
-The directory used for storing the database.
-.B \%HOME/.local/share
-will be used if not set.
 .SH FILES
 .TP
-.B \%XDG_DATA_HOME/webfeeds
-Directory containing the database used to track new entries from web feeds.
-.TP
 .B \%M4_XSLTDIR
-Directory containing the XSLT code used to transform web feed XML and write
-formatted entries.
+The directory containing the XSLT scripts used to transform web feed XML and
+write formatted entries.
+.TP
+.B \%database
+The directory provided on the command-line which will contain the files used to
+track entries from any web feeds.
 .P
-For each
-.I link
-provided the extracted
+For each web feed provided the
 .I domain
-and
+from the channel's link
+and its
 .I title
 will be joined to create directories under which the
 .IR new ", " archive " and "storage
 files may be found.
 .TP
-.B \%XDG_DATA_HOME/webfeeds/db/domain/title/new
-File containing newly discovered entries.
+.B \%database/db/domain/title/new
+The file containing newly discovered entries.
 .TP
-.B \%XDG_DATA_HOME/webfeeds/db/domain/title/archive
-File containing roughly 3000 entries seen heretofore before being placed in
+.B \%database/db/domain/title/archive
+The file containing roughly 3000 entries seen heretofore before being placed in
 storage.
 .TP
-.B \%XDG_DATA_HOME/webfeeds/db/domain/title/storage
-Directory containing gzip compressed archives which are produced once the
+.B \%database/db/domain/title/storage
+The directory containing gzip compressed archives which are produced once the
 number of entries in the
 .I archive
 file exceeds 3000.
@@ -99,17 +89,17 @@ used for internal details may also be found.  Here the directory under
 .I xml
 is constructed with the URL as-is excluding the scheme part.
 .TP
-.B \%XDG_DATA_HOME/webfeeds/xml/url/etag
-File used to store etag values used when querying servers for new additions in
+.B \%database/xml/url/etag
+The file used to store etag values used when querying servers for new additions in
 order to prevent unnecessary bandwidth use.
 .TP
-.B \%XDG_DATA_HOME/webfeeds/xml/url/xml
+.B \%database/xml/url/xml
 The web feed data from which pertinent information is extracted.  This file is
 removed immediately afterwards and should not be present under normal
 circumstances.
 .TP
-.B \%XDG_DATA_HOME/webfeeds/db/domain/title/recent
-File contains the freshly parsed results and used to produce the new file.  It
+.B \%database/db/domain/title/recent
+The file contains the freshly parsed results and used to produce the new file.  It
 is removed immediately afterwards and should not be present under normal
 circumstances.
 .SH NOTES
@@ -132,10 +122,11 @@ The essential workflow of this tool can be demonstrated as follows:
     # linux news
     https://lwn.net/headlines/newrss
 
-    $ webfeeds < feeds
-    /home/earnest/.local/share/webfeeds/lwn.net/LWN.net
+    $ mkdir database
+    $ webfeeds database < feeds
+    database/lwn.net/LWN.net
 
-    $ cat /home/earnest/.local/share/webfeeds/db/lwn.net/LWN.net/new
+    $ cat database/db/lwn.net/LWN.net/new
     2022-02-14T14:50:31Z https://lwn.net/Articles/884757/ Security updates for Monday
     2022-02-14T00:15:57Z https://lwn.net/Articles/884689/ Kernel prepatch 5.17-rc4
     2022-02-11T16:46:15Z https://lwn.net/Articles/884301/ [$] Debian reconsiders NEW review
@@ -150,11 +141,14 @@ scripts can be used to provide a reasonable feed reader, for example:
 .EX
     #!/bin/bash --
 
+    db=$PWD/database
+    mkdir -p -- "$db"
+
     while IFS= read -rd '' db; do
         printf -v prompt '[%s] %s' "$(wc -l < "$db"/new)" "${db##*/}"
         printf '%s\en' "$prompt" "${prompt//?/=}" "$(< "$db"/new)"
-        printf '\ea\en'
-    done < <(nice webfeeds -0 < feeds)
+        printf '\ea'
+    done < <(nice webfeeds -0 "$database" < feeds)
 .EE
 .SH SOURCE
 .UR https://github.com/Earnestly/webfeeds

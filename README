@@ -33,7 +33,7 @@ HOW
         <l>link</l><t>title</t></i>...</e></f><f>...</f></c>
 
     N.B. Each date element is arranged on its own line so that dateconv matches
-         them exactly.
+         them exclusively.
 
     The format is then used by write.xslt via <xsl:document> to generate file
     outputs in the desired format.
