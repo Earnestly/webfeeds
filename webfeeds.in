@@ -2,7 +2,7 @@
 # webfeeds - collect web feed titles and links
 # requires curl[>=7.75.0] xsltproc dateutils gzip awk(null-split)
 
-urlencode() {
+encode() {
     # XXX xsltproc's stringparams attempts to add ' or " quotes depending on
     #     their presence in the string; if both are found xsltproc will exit
     #     with an error.
@@ -33,21 +33,27 @@ urlencode() {
         }'
 }
 
-datadir=${XDG_DATA_HOME:-$HOME/.local/share}/webfeeds
 xsltdir=M4_XSLTDIR
-ua=webfeeds/2.0
+ua=webfeeds/3.0
 
-while getopts :0d:l: arg; do
+alias usage="printf 'usage: webfeeds [-0] [-l directory] database\n'"
+
+while getopts :0l: arg; do
     case $arg in
         0) sep='\0' ;;
-        d) datadir=$OPTARG ;;
         l) xsltdir=$OPTARG ;;
-        *) printf 'usage: webfeeds [-0] [-d database_dir] [-l xslt_dir]\n' >&2
-           exit 1
+        *) usage >&2; exit 1
     esac
 done
+shift "$((OPTIND-1))"
 
-if ! mkdir -p -- "$datadir"; then
+dest=$1
+
+if ! [ "$dest" ]; then
+    usage >&2
+    exit 1
+elif ! [ -d "$dest" ]; then
+    printf 'webfeeds: error: %s: not a directory\n' "$dest" >&2
     exit 1
 fi
 
@@ -65,7 +71,7 @@ hr=$(printf '\t')
 while read -r url _; do
     case $url in
         [!#]*://*)
-            path=$datadir/xml/${url#http*://}
+            path=$dest/xml/${url#http*://}
 
             # Ensure the path exists for curl's etags as it does not create the
             # leading directories.
@@ -77,6 +83,8 @@ while read -r url _; do
             # Ensure the path is made safe for curl's config format.
             case $path in
                 *[${IFS#??}$cr$hr\"\\]*)
+                    printf 'webfeeds: warning: %s: scuffed path\n' "$path" >&2
+
                     path=$(e="$path" awk '
                         BEGIN{
                             s = ENVIRON["e"]
@@ -84,8 +92,6 @@ while read -r url _; do
                             gsub(/\\/, "\\\\", s)
                             gsub(/"/,  "\\\"", s)
                             gsub(/\n/, "\\n", s)
-                            gsub(/\r/, "\\r", s)
-                            gsub(/\t/, "\\t", s)
 
                             printf "%s", s
                         }')
@@ -102,18 +108,17 @@ while read -r url _; do
             printf 'etag-save "%s/etag"\n' "$path"
             printf 'etag-compare "%s/etag"\n' "$path"
 
-            # Output files are used rather than standard output as when curl
-            # uses parallel the output is interleaved with no option to control
-            # it.
+            # Output files are used rather than standard output as curl
+            # interleaves the output when in parallel mode.
             printf 'output "%s/xml"\n' "$path"
 
             # XXX By default when curl is called with multiple urls, and if
             #     one of those calls results in an error, it will not always
             #     include the url in the associated error message.
-            printf 'write-out "%s"\n' '%{onerror}%{url}\n%{stderr}curl: %{url}: %{errormsg}\n'
+            printf 'write-out "%s"\n' '%{onerror}%{url}\n%{stderr}webfeeds: warning: %{url}: %{errormsg}\n'
     esac
 done | curl -gsqZLK - | while IFS= read -r url; do
-    xml=$datadir/${url#http*://}/xml
+    xml=$dest/${url#http*://}/xml
 
     if [ -f "$xml" ]; then
         rm -f -- "$xml"
@@ -122,11 +127,11 @@ done
 
 {
     printf '<c>'
-    find "$datadir"/xml -type f -name xml -exec sh -c '
+    find "$dest"/xml -type f -name xml -exec sh -c '
         db=$1 xslt=$2
         shift 2
         xsltproc -nonet -stringparam prefix "$db" "$xslt" "$@"
-        rm -f -- "$@"' _ "$(urlencode "$datadir"/db)" "$xsltdir"/parse.xslt {} +
+        rm -f -- "$@"' _ "$(encode "$dest"/db)" "$xsltdir"/parse.xslt {} +
     printf '</c>\n'
 } | {
     # XXX dateutils does not account for named timezones or their abbreviations,
@@ -145,7 +150,7 @@ done
 
 # XXX Trivial parallelism is possible here, and while this is the slowest part
 #     of the script, it is not yet slow enough.
-for recent in "$datadir"/db/*/*/recent; do
+for recent in "$dest"/db/*/*/recent; do
     if [ -f "$recent" ]; then
         db=${recent%/*}
 
