@@ -1,22 +1,22 @@
 #!/bin/sh --
 # webfeeds - collect web feed titles and links
-# requires curl[>=7.75.0] xsltproc dateutils gzip awk(null-split)
+# requires curl[>=7.83.0] xsltproc dateutils gzip awk(null-split)
 
 encode() {
     # XXX xsltproc's stringparams attempts to add ' or " quotes depending on
     #     their presence in the string; if both are found xsltproc will exit
     #     with an error.
 
-    #     There also appears to be a bug - if some unreserved or multibyte
+    #     There also appears to be a bug; if some unreserved or multibyte
     #     characters appear in the path, xsltproc seems to encode twice, or
     #     separately, such that on decode there will remain a few percent
     #     encoded bytes in the result, such as a %20 instead of a literal
     #     space.
 
     #     As a consequence it appears better to percent encode the entire
-    #     string regardless of characters reserved or unreserved.  A secondary
-    #     benefit is that now without the ' or " quotes being present
-    #     stringparams can work unhindered.
+    #     string regardless of characters reserved or unreserved by the RFC.
+    #     A secondary benefit is that now without the ' or " quotes being
+    #     present stringparams can work unhindered.
 
     #     N.B. This implementation requires of awk the ability to split strings
     #          into individual bytes using the null string.  It is unspecified
@@ -73,8 +73,8 @@ while read -r url _; do
         [!#]*://*)
             path=$dest/xml/${url#http*://}
 
-            # Ensure the path exists for curl's etags as it does not create the
-            # leading directories.
+            # The path may not exist for curl's etags as curl does not create
+            # the leading directories.
             # https://github.com/curl/curl/issues/7942
             if ! [ -d "$path" ]; then
                 mkdir -p -- "$path"
@@ -97,11 +97,7 @@ while read -r url _; do
                         }')
             esac
 
-            # XXX Until --remove-on-error is available (7.83.0) the url is
-            #     printed on error to standard output.  From there it is drawn
-            #     into a loop which recreates the path to the xml file and
-            #     removes it.  https://github.com/curl/curl/pull/8503
-            printf '%s\n' next location fail compressed # remove-on-error
+            printf '%s\n' next location fail compressed remove-on-error
             printf 'user-agent %s\n' "$ua"
             printf 'url "%s"\n' "$url"
 
@@ -117,13 +113,7 @@ while read -r url _; do
             #     include the url in the associated error message.
             printf 'write-out "%s"\n' '%{onerror}%{url}\n%{stderr}webfeeds: warning: %{url}: %{errormsg}\n'
     esac
-done | curl -gsqZLK - | while IFS= read -r url; do
-    xml=$dest/${url#http*://}/xml
-
-    if [ -f "$xml" ]; then
-        rm -f -- "$xml"
-    fi
-done
+done | curl -gsqZLK -
 
 {
     printf '<c>'

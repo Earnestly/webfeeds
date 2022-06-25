@@ -40,7 +40,7 @@ HOW
 
 REQUIRES
 
-    * curl[>=7.75.0]
+    * curl[>=7.83.0]
     * xsltproc <http://xmlsoft.org/XSLT>
     * dateutils <https://github.com/hroptatyr/dateutils>
     * awk(null-split)
