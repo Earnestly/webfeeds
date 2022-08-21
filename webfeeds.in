@@ -1,6 +1,6 @@
 #!/bin/sh --
 # webfeeds - collect web feed titles and links
-# requires curl[>=7.83.0] xsltproc dateutils gzip awk(null-split)
+# requires curl[>=7.83.0] xsltproc dateutils gzip
 
 encode() {
     # XXX xsltproc's stringparams attempts to add ' or " quotes depending on
@@ -17,19 +17,16 @@ encode() {
     #     string regardless of characters reserved or unreserved by the RFC.
     #     A secondary benefit is that now without the ' or " quotes being
     #     present stringparams can work unhindered.
-
-    #     N.B. This implementation requires of awk the ability to split strings
-    #          into individual bytes using the null string.  It is unspecified
-    #          by POSIX but supported by all relevant implementations.
     e="$1" LC_ALL=C awk '
         BEGIN{
-            for(i=0; i<255; ++i)
+            for(i=0; i<256; ++i)
                 ord[sprintf("%c", i)] = i
 
-            n = split(ENVIRON["e"], byte, "")
+            e = ENVIRON["e"]
+            len = length(e)
 
-            for(i=1; i<=n; ++i)
-                printf "%%%02x", ord[byte[i]]
+            for(i=1; i<=len; ++i)
+                printf "%%%02x", ord[substr(e, i, 1)]
         }'
 }
 

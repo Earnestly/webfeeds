@@ -27,4 +27,4 @@ clean:
 .SUFFIXES: .in
 
 .in:
-	m4 -D M4_XSLTDIR=$(libdir)/webfeeds $< > $@
+	m4 -U substr -D M4_XSLTDIR=$(libdir)/webfeeds $< > $@
