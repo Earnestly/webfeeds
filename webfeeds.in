@@ -108,7 +108,7 @@ while read -r url _; do
             # XXX By default when curl is called with multiple urls, and if
             #     one of those calls results in an error, it will not always
             #     include the url in the associated error message.
-            printf 'write-out "%s"\n' '%{onerror}%{url}\n%{stderr}webfeeds: warning: %{url}: %{errormsg}\n'
+            printf 'write-out "%s"\n' '%{onerror}%{stderr}webfeeds: warning: %{url}: %{errormsg}\n'
     esac
 done | curl -gsqZLK -
 
