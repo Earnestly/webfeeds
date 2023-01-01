@@ -133,6 +133,7 @@ done | curl -gsZLK -
            -i '<d>%a, %d %b %Y %T GMT</d>' \
            -i '<d>%a, %d %b %Y %T UTC</d>' \
            -i '<d>%d %b %Y %T %Z</d>' \
+           -i '<d>%d %b %Y %H:%M GMT</d>' \
            -i '<d>%F</d>'
 
     dateconv -Sf '<d>%FT%TZ</d>' "$@"
