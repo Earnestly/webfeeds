@@ -2,21 +2,26 @@
 # webfeeds - collect web feed titles and links
 # requires curl[>=7.83.0] xsltproc dateutils gzip
 
-encode() {
-    # XXX xsltproc's stringparams attempts to add ' or " quotes depending on
-    #     their presence in the string; if both are found xsltproc will exit
-    #     with an error.
+usage() {
+    printf 'usage: webfeeds [-0] [-l directory] database\n'
+}
 
-    #     There also appears to be a bug; if some unreserved or multibyte
-    #     characters appear in the path, xsltproc seems to encode twice, or
-    #     separately, such that on decode there will remain a few percent
+encode() {
+    # XXX xsltproc's --stringparam option attempts to add ' or " quotes to its
+    #     argument depending on their presence; if both are found xsltproc will
+    #     exit with an error.
+
+    #     There also appears to be a bug: if some unreserved or multibyte
+    #     characters appear in a path, xsltproc seems to encode them twice,
+    #     or separately, such that on decode there will remain a few percent
     #     encoded bytes in the result, such as a %20 instead of a literal
     #     space.
 
     #     As a consequence it appears better to percent encode the entire
-    #     string regardless of characters reserved or unreserved by the RFC.
-    #     A secondary benefit is that now without the ' or " quotes being
-    #     present stringparams can work unhindered.
+    #     string regardless of the characters reserved or unreserved by
+    #     RFC3986.  A secondary benefit is that now without the ' or " quotes
+    #     being present in the --stringparam argument xsltproc can work
+    #     unhindered.
     e="$1" LC_ALL=C awk '
         BEGIN{
             for(i=0; i<256; ++i)
@@ -24,7 +29,6 @@ encode() {
 
             e = ENVIRON["e"]
             len = length(e)
-
             for(i=1; i<=len; ++i)
                 printf "%%%02x", ord[substr(e, i, 1)]
         }'
@@ -32,8 +36,6 @@ encode() {
 
 xsltdir=M4_XSLTDIR
 ua=webfeeds/3.0
-
-alias usage="printf 'usage: webfeeds [-0] [-l directory] database\n'"
 
 while getopts :0l: arg; do
     case $arg in
@@ -64,6 +66,7 @@ done
 # XXX Until POSIX supports $'' syntax, this will have to do.
 cr=$(printf '\r')
 hr=$(printf '\t')
+nl=$(printf '\nz') nl=${nl%z}
 
 while read -r url _; do
     case $url in
@@ -79,7 +82,7 @@ while read -r url _; do
 
             # Ensure the path is made safe for curl's config format.
             case $path in
-                *[${IFS#??}$cr$hr\"\\]*)
+                *[$nl$cr$hr\"\\]*)
                     printf 'webfeeds: warning: %s: scuffed path\n' "$path" >&2
 
                     path=$(e="$path" awk '
@@ -110,7 +113,7 @@ while read -r url _; do
             #     include the url in the associated error message.
             printf 'write-out "%s"\n' '%{onerror}%{stderr}webfeeds: warning: %{url}: %{errormsg}\n'
     esac
-done | curl -gsqZLK -
+done | curl -gsZLK -
 
 {
     printf '<c>'
