@@ -1,4 +1,4 @@
-.TH WEBFEEDS 1 "5 February 2022" 1.0
+.TH WEBFEEDS 1 "3 February 2023" 1.0
 .SH NAME
 webfeeds \- collect web feed titles and links
 .SH SYNOPSIS
@@ -9,18 +9,18 @@ webfeeds \- collect web feed titles and links
 .I database
 .SH DESCRIPTION
 .B webfeeds
-reads standard input composed of newline separated URLs and potentially
-produces a list of directories under the provided
+reads from standard input newline separated URLs and potentially produces a
+list of directories under the provided
 .I database
 directory.
 .P
-Each line of input is checked whether it is empty or beings with a
+Empty lines or lines beginning with a
 .I #
-character in which case it is skipped.  Any text after a URL is also ignored.
+character are ignored.  Any text after a URL is also ignored.
 .P
-If a feed was found to contain new entries then the directory to its database
-will be written to standard output.  Inside this directory there will exist the
-file
+During operation if a feed was found to have new articles then the directory to
+its database entry will be written to standard output.  Inside this directory
+there will exist the file
 .I new
 containing the recent entries.  The counterpart,
 .IR archive ,
@@ -38,13 +38,13 @@ For example:
 .SH OPTIONS
 .TP
 .B \-0
-The directories written to standard output will be separated by null bytes
-instead of newlines.
+The database directories written to standard output will be separated by a null
+byte instead of a newline.
 .TP
 .B \-l
-Specify the
+The
 .I directory
-under which the necessary XSLT files can be found.
+under which the necessary XSLT files can be located.
 .SH EXIT STATUS
 .B webfeeds
 usually returns
@@ -54,21 +54,20 @@ standard error.
 .SH FILES
 .TP
 .B \%M4_XSLTDIR
-The directory containing the XSLT scripts used to transform web feed XML and
-write formatted entries.
+The directory containing the XSLT scripts used to transform the XML and write
+formatted entries.
 .TP
 .B \%database
-The directory provided on the command-line which will contain the files used to
-track entries from any web feeds.
+The directory provided on the command-line which will be populated by the files
+used to track entries from web feeds.
 .P
 For each web feed provided the
 .I domain
-from the channel's link
-and its
+from the channel's URL and its
 .I title
 will be joined to create directories under which the
 .IR new ", " archive " and "storage
-files may be found.
+files are kept.
 .TP
 .B \%database/db/domain/title/new
 The file containing newly discovered entries.
@@ -78,36 +77,36 @@ The file containing roughly 3000 entries seen heretofore before being placed in
 storage.
 .TP
 .B \%database/db/domain/title/storage
-The directory containing gzip compressed archives which are produced once the
-number of entries in the
+The directory containing compressed archives which are produced once the number
+of entries in the
 .I archive
 file exceeds 3000.
 .P
 The files
 .IR etag ", " xml " and " recent
-used for internal details may also be found.  Here the directory under
+are used for internal details may also be found.  Here the directory under
 .I xml
 is constructed with the URL as-is excluding the scheme part.
 .TP
 .B \%database/xml/url/etag
-The file used to store etag values used when querying servers for new additions in
-order to prevent unnecessary bandwidth use.
+The file used for etag values when querying servers for new additions in order
+to mitigate unnecessary bandwidth use.
 .TP
 .B \%database/xml/url/xml
-The web feed data from which pertinent information is extracted.  This file is
-removed immediately afterwards and should not be present under normal
+The raw web feed XML data from which pertinent information is extracted.  This
+file is removed immediately afterwards and should not be present under normal
 circumstances.
 .TP
 .B \%database/db/domain/title/recent
-The file contains the freshly parsed results and used to produce the new file.  It
-is removed immediately afterwards and should not be present under normal
+The file contains the freshly parsed results and used to produce the new file.
+It is removed immediately afterwards and should not be present under normal
 circumstances.
 .SH NOTES
 Each time
 .B webfeeds
 is run the corresponding
 .I new
-files will be overwritten.  As a result one will not be able to use this file
+files will be overwritten.  As a result it will not be able to use this file
 as a means to track unread entries if it has not been processed before
 subsequent runs.  The missed entries will nevertheless be found in the
 .I archive
@@ -115,7 +114,9 @@ file or within the
 .I storage
 directory.
 .SH EXAMPLES
-The essential workflow of this tool can be demonstrated as follows:
+The essential workflow of
+.B webfeeds
+can be demonstrated as follows:
 .P
 .EX
     $ cat feeds
@@ -133,10 +134,10 @@ The essential workflow of this tool can be demonstrated as follows:
     ...
 .EE
 .P
-Alone this is not particularly comfortable;
+Alone this may not be particularly comfortable;
 .B webfeeds
 was designed to separate retrieval and storage from presentation.  Simple
-scripts can be used to provide a reasonable feed reader, for example:
+scripts can be used to provide a feed reader, for example:
 .P
 .EX
     #!/bin/bash --

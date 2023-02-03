@@ -51,8 +51,8 @@
 
         <xsl:element name="i">
             <!--
-                The use of &#10; (newlines) are used to ensure the date node is
-                on its own line so that dateconv can match them precisely.
+                The pair of newlines (&#10;) are used to provide the date node
+                on its own line. This is so dateconv(1) can match it precisely.
             -->
             <xsl:text>&#10;</xsl:text>
             <xsl:element name="d">
@@ -144,8 +144,8 @@
 
     <xsl:template match="*">
         <!--
-            Override built-in XSLT templates to do nothing if the above
-            templates are not matched.
+            Prevent the built-in XSLT templates from acting if the above
+            templates were not matched.
         -->
     </xsl:template>
 </xsl:stylesheet>
