@@ -41,10 +41,8 @@ For example:
 The database directories written to standard output will be separated by a null
 byte instead of a newline.
 .TP
-.B \-l
-The
-.I directory
-under which the necessary XSLT files can be located.
+.BI \-l " directory"
+The location of the XSLT files (intended for debugging).
 .SH EXIT STATUS
 .B webfeeds
 usually returns
