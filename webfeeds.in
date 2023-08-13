@@ -64,8 +64,6 @@ for xsl in "$xsltdir"/parse.xslt "$xsltdir"/write.xslt; do
 done
 
 # XXX Until POSIX supports $'' syntax, this will have to do.
-cr=$(printf '\r')
-hr=$(printf '\t')
 nl=$(printf '\nz') nl=${nl%z}
 
 while read -r url _; do
@@ -82,7 +80,7 @@ while read -r url _; do
 
             # Ensure the path is made safe for curl's config format.
             case $path in
-                *[$nl$cr$hr\"\\]*)
+                *[$nl\"\\]*)
                     printf 'webfeeds: warning: %s: scuffed path\n' "$path" >&2
 
                     path=$(e="$path" awk '
