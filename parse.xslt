@@ -79,7 +79,13 @@
             </xsl:element>
 
             <xsl:element name="t">
-                <xsl:value-of select="$title"/>
+                <!--
+                    Specifically remove newlines as they are used to delineate
+                    items in the database.
+                    Rather than translate(), normalize-space() can be used for
+                    this purpose while also tidying up other white space issues.
+                -->
+                <xsl:value-of select="normalize-space($title)"/>
             </xsl:element>
         </xsl:element>
     </xsl:template>
