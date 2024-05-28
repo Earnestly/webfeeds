@@ -35,13 +35,14 @@ encode() {
 }
 
 xsltdir=M4_XSLTDIR
-ua=webfeeds/3.0
+ua=webfeeds/3.2
+fmt='%s\n'
 
 while getopts :0l: arg; do
     case $arg in
-        0) sep='\0' ;;
-        l) xsltdir=$OPTARG ;;
-        *) usage >&2; exit 1
+    0) fmt='%s\0' ;;
+    l) xsltdir=$OPTARG ;;
+    *) usage >&2; exit 1
     esac
 done
 shift "$((OPTIND-1))"
@@ -68,48 +69,45 @@ nl=$(printf '\nz') nl=${nl%z}
 
 while read -r url _; do
     case $url in
-        [!#]*://*)
-            path=$dest/xml/${url#http*://}
+    [!#]*://*)
+        path=$dest/xml/${url#http*://}
 
-            # The path may not exist for curl's etags as curl does not create
-            # the leading directories.
-            # https://github.com/curl/curl/issues/7942
-            if ! [ -d "$path" ]; then
-                mkdir -p -- "$path"
-            fi
+        # The path may not exist for curl's etags as curl does not create
+        # the leading directories.
+        # https://github.com/curl/curl/issues/7942
+        if ! [ -d "$path" ]; then
+            mkdir -p -- "$path"
+        fi
 
-            # Ensure the path is made safe for curl's config format.
-            case $path in
-                *[$nl\"\\]*)
-                    printf 'webfeeds: warning: %s: scuffed path\n' "$path" >&2
+        # Ensure the path is made safe for curl's config format.
+        case $path in
+        *[$nl\"\\]*)
+            printf 'webfeeds: warning: %s: scuffed path\n' "$path" >&2
 
-                    path=$(e="$path" awk '
-                        BEGIN{
-                            s = ENVIRON["e"]
+            path=$(e="$path" awk '
+                BEGIN{
+                    s = ENVIRON["e"]
 
-                            gsub(/\\/, "\\\\", s)
-                            gsub(/"/,  "\\\"", s)
-                            gsub(/\n/, "\\n", s)
+                    gsub(/\\/, "\\\\", s)
+                    gsub(/"/,  "\\\"", s)
+                    gsub(/\n/, "\\n", s)
 
-                            printf "%s", s
-                        }')
-            esac
+                    printf "%s", s
+                }')
+        esac
 
-            printf '%s\n' next location fail compressed remove-on-error
-            printf 'user-agent %s\n' "$ua"
-            printf 'url "%s"\n' "$url"
+        printf '%s\n' next location fail compressed remove-on-error
+        printf 'user-agent %s\n' "$ua"
+        printf 'url "%s"\n' "$url"
 
-            printf 'etag-save "%s/etag"\n' "$path"
-            printf 'etag-compare "%s/etag"\n' "$path"
+        printf 'etag-save "%s/etag"\n' "$path"
+        printf 'etag-compare "%s/etag"\n' "$path"
 
-            # Output files are used rather than standard output as curl
-            # interleaves the output when in parallel mode.
-            printf 'output "%s/xml"\n' "$path"
+        # Output files are used rather than standard output as curl
+        # interleaves the output when in parallel mode.
+        printf 'output "%s/xml"\n' "$path"
 
-            # XXX By default when curl is called with multiple urls, and if
-            #     one of those calls results in an error, it will not always
-            #     include the url in the associated error message.
-            printf 'write-out "%s"\n' '%{onerror}%{stderr}webfeeds: warning: %{url}: %{errormsg}\n'
+        printf 'write-out "%s"\n' '%{onerror}%{stderr}webfeeds: warning: %{url}: %{errormsg}\n'
     esac
 done | curl -gsZLK -
 
@@ -152,7 +150,8 @@ for recent in "$dest"/db/*/*/recent; do
         rm -f -- "$db"/recent
 
         if [ -s "$db"/new ]; then
-            printf "%s${sep:-\n}" "$db"
+            # shellcheck disable=SC2059
+            printf "$fmt" "$db"
         fi
 
         cat -- "$db"/new "$db"/archive > "$db"/tmp
