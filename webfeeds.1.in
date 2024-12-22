@@ -38,11 +38,12 @@ For example:
 .SH OPTIONS
 .TP
 .B \-0
-The database directories written to standard output will be separated by a null
+The database directories written to standard output will be separated by a NUL
 byte instead of a newline.
 .TP
 .BI \-l " directory"
-The location of the XSLT files (intended for debugging).
+The location of the XSLT files (intended for debugging, default:
+.IR \%M4_XSLTDIR )
 .SH EXIT STATUS
 .B webfeeds
 usually returns
