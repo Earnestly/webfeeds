@@ -100,6 +100,9 @@ while read -r url _; do
         printf 'user-agent %s\n' "$ua"
         printf 'url "%s"\n' "$url"
 
+        # Use the etag file timestamp for if-modified-since requests as the
+        # server may not support support etags.
+        printf 'time-cond "%s/etag"\n' "$path"
         printf 'etag-save "%s/etag"\n' "$path"
         printf 'etag-compare "%s/etag"\n' "$path"
 
